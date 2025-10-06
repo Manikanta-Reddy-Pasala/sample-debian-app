@@ -1,0 +1,62 @@
+═══════════════════════════════════════════════════════════════
+               HOW TO RUN - Debian Package Generator
+═══════════════════════════════════════════════════════════════
+
+STEP 1: Install Python dependency
+───────────────────────────────────────────────────────────────
+$ pip3 install -r requirements.txt
+
+This installs: cryptography
+
+
+STEP 2: Generate the Debian package
+───────────────────────────────────────────────────────────────
+$ python3 build_deb_package.py
+
+Output: sample-config-pkg_1.0.0_all.deb
+
+
+STEP 3: Verify the package (macOS)
+───────────────────────────────────────────────────────────────
+$ ar -x sample-config-pkg_1.0.0_all.deb
+$ tar -tzf data.tar.gz
+
+
+STEP 4: Install on Ubuntu
+───────────────────────────────────────────────────────────────
+$ sudo apt install ./sample-config-pkg_1.0.0_all.deb
+
+
+WHAT'S INSTALLED?
+───────────────────────────────────────────────────────────────
+Location: /opt/config/
+
+Certificates:
+  • /opt/config/certs/ca.crt       (CA certificate)
+  • /opt/config/certs/ca.key       (CA private key)
+  • /opt/config/certs/server.crt   (Server certificate)
+  • /opt/config/certs/server.key   (Server private key)
+  • /opt/config/certs/client.crt   (Client certificate)
+  • /opt/config/certs/client.key   (Client private key)
+
+Configuration:
+  • /opt/config/test.conf          (Application config)
+
+
+PACKAGE CONTENTS
+───────────────────────────────────────────────────────────────
+• Triggers file (monitors /opt/config/)
+• Pre-install script (backup & directory creation)
+• Post-install script (sets permissions)
+• CA, Server, and Client certificates
+• Configuration file
+
+
+NOTES
+───────────────────────────────────────────────────────────────
+✓ 100% Pure Python - no OS commands used
+✓ Cross-platform compatible (Ubuntu, macOS, Windows)
+✓ Certificates signed by CA
+✓ CA valid for 10 years, certs valid for 1 year
+
+═══════════════════════════════════════════════════════════════
