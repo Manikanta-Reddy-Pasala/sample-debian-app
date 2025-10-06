@@ -2,27 +2,36 @@
                HOW TO RUN - Debian Package Generator
 ═══════════════════════════════════════════════════════════════
 
-STEP 1: Install Python dependency
+METHOD 1: Run the Executable (Recommended)
 ───────────────────────────────────────────────────────────────
+$ ./generate-deb-package
+
+This is a standalone executable that includes all dependencies.
+No Python installation needed to run it!
+
+Output: sample-config-pkg_1.0.0_all.deb
+
+
+METHOD 2: Run Python Script Directly
+───────────────────────────────────────────────────────────────
+If you prefer to run the Python script:
+
+Step 1: Install dependencies
 $ pip3 install -r requirements.txt
 
-This installs: cryptography
-
-
-STEP 2: Generate the Debian package
-───────────────────────────────────────────────────────────────
+Step 2: Run the script
 $ python3 build_deb_package.py
 
 Output: sample-config-pkg_1.0.0_all.deb
 
 
-STEP 3: Verify the package (macOS)
+VERIFY THE PACKAGE (macOS)
 ───────────────────────────────────────────────────────────────
 $ ar -x sample-config-pkg_1.0.0_all.deb
 $ tar -tzf data.tar.gz
 
 
-STEP 4: Install on Ubuntu
+INSTALL ON UBUNTU
 ───────────────────────────────────────────────────────────────
 $ sudo apt install ./sample-config-pkg_1.0.0_all.deb
 
@@ -45,18 +54,30 @@ Configuration:
 
 PACKAGE CONTENTS
 ───────────────────────────────────────────────────────────────
-• Triggers file (monitors /opt/config/)
-• Pre-install script (backup & directory creation)
-• Post-install script (sets permissions)
-• CA, Server, and Client certificates
-• Configuration file
+✓ Triggers file (monitors /opt/config/)
+✓ Pre-install script (backup & directory creation)
+✓ Post-install script (sets permissions)
+✓ CA, Server, and Client certificates (CA-signed)
+✓ Configuration file
+
+
+TO CREATE EXECUTABLE FROM SCRATCH
+───────────────────────────────────────────────────────────────
+If you want to rebuild the executable:
+
+$ pip3 install -r requirements.txt
+$ pyinstaller --onefile --name generate-deb-package build_deb_package.py
+
+The executable will be in the dist/ folder.
 
 
 NOTES
 ───────────────────────────────────────────────────────────────
-✓ 100% Pure Python - no OS commands used
-✓ Cross-platform compatible (Ubuntu, macOS, Windows)
+✓ Executable is standalone (no dependencies needed)
+✓ 100% Pure Python source code
+✓ Cross-platform compatible
 ✓ Certificates signed by CA
 ✓ CA valid for 10 years, certs valid for 1 year
+✓ Triggers included
 
 ═══════════════════════════════════════════════════════════════
