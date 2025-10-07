@@ -166,8 +166,6 @@ echo "Running post-installation script..."
 chmod 644 /opt/config/certs/*.crt
 chmod 600 /opt/config/certs/*.key
 chmod 644 /opt/config/test.conf
-echo "watch /opt/config" > /etc/apt/triggers.d/sample-config-pkg
-echo "interest /opt/config" >> /etc/apt/triggers.d/sample-config-pkg
 echo "Post-installation script finished."
 exit 0
 """
@@ -188,9 +186,6 @@ if [ "$1" = "purge" ]; then
     fi
     if [ -d "/opt/config_backup" ]; then
         rm -rf /opt/config_backup
-    fi
-    if [ -f "/etc/apt/triggers.d/sample-config-pkg" ]; then
-        rm -f /etc/apt/triggers.d/sample-config-pkg
     fi
 fi
 echo "Post-removal script finished."
