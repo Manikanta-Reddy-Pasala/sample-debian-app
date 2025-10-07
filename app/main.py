@@ -13,66 +13,40 @@ from app.services.certificate_service import generate_certificates
 
 def create_ar_archive(output_file, files):
     """
-    Create an AR archive using pure Python
+    Create a Debian-compatible AR archive using pure Python.
+    This implementation follows the GNU ar format.
     """
     print(f"Creating AR archive: {output_file}")
+    try:
+        with open(output_file, 'wb') as ar_file:
+            ar_file.write(b'!<arch>\n')
 
-    with open(output_file, 'wb') as ar_file:
-        ar_file.write(b'!<arch>\n')
+            for file_path in files:
+                stat = os.stat(file_path)
+                file_size = stat.st_size
+                file_name = os.path.basename(file_path)
 
-        for file_path in files:
-            stat = os.stat(file_path)
-            file_size = stat.st_size
-            file_name = os.path.basename(file_path)
+                header = (
+                    f"{file_name:<16}"
+                    f"{int(stat.st_mtime):<12}"
+                    f"{0:<6}"
+                    f"{0:<6}"
+                    f"{'100644':<8}"
+                    f"{file_size:<10}"
+                    "`\n"
+                ).encode('ascii')
 
-            header = bytearray(60)
+                ar_file.write(header)
+                with open(file_path, 'rb') as f:
+                    ar_file.write(f.read())
 
-            # File name (16 bytes)
-            name_bytes = file_name.encode('ascii')[:16]
-            header[0:len(name_bytes)] = name_bytes
-            for i in range(len(name_bytes), 16):
-                header[i] = ord(' ')
-
-            # Modification time (12 bytes)
-            mtime = str(int(stat.st_mtime)).encode('ascii')
-            header[16:16+len(mtime)] = mtime
-            for i in range(16+len(mtime), 28):
-                header[i] = ord(' ')
-
-            # Owner ID (6 bytes)
-            header[28:30] = b'0 '
-            for i in range(30, 34):
-                header[i] = ord(' ')
-
-            # Group ID (6 bytes)
-            header[34:36] = b'0 '
-            for i in range(36, 40):
-                header[i] = ord(' ')
-
-            # File mode (8 bytes, octal)
-            mode = b'100644'
-            header[40:40+len(mode)] = mode
-            for i in range(40+len(mode), 48):
-                header[i] = ord(' ')
-
-            # File size (10 bytes)
-            size_bytes = str(file_size).encode('ascii')
-            header[48:48+len(size_bytes)] = size_bytes
-            for i in range(48+len(size_bytes), 58):
-                header[i] = ord(' ')
-
-            # End marker
-            header[58:60] = b'`\n'
-
-            ar_file.write(header)
-
-            with open(file_path, 'rb') as f:
-                ar_file.write(f.read())
-
-            if file_size % 2 != 0:
-                ar_file.write(b'\n')
-
-    print("✓ AR archive created")
+                if file_size % 2 != 0:
+                    ar_file.write(b'\n')
+        print("✓ AR archive created successfully")
+        return True
+    except Exception as e:
+        print(f"Error creating AR archive: {e}")
+        return False
 
 
 def set_permissions(file_path, mode):
@@ -197,7 +171,9 @@ log_file=/var/log/sample-app.log
 
     # Assemble .deb package
     print("Assembling .deb package...")
-    create_ar_archive(deb_file, ["debian-binary", "control.tar.gz", "data.tar.gz"])
+    if not create_ar_archive(deb_file, ["debian-binary", "control.tar.gz", "data.tar.gz"]):
+        print("Failed to create .deb package. Aborting.")
+        return
 
     print(f"\n✓ Package created: {deb_file}")
     print(f"✓ Package size: {os.path.getsize(deb_file)} bytes")
