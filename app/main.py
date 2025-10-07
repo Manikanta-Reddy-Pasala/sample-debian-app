@@ -142,7 +142,7 @@ log_file=/var/log/sample-app.log
         "description": description,
     }
 
-    for template_name in ["control", "triggers", "preinst", "postinst", "postrm"]:
+    for template_name in ["control", "preinst", "postinst", "postrm"]:
         template = env.get_template(f"{template_name}.j2")
         content = template.render(template_context)
         filepath = os.path.join(control_dir, template_name)
