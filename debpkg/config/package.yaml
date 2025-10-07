@@ -1,0 +1,27 @@
+# Debian Package Configuration
+# This file contains all settings for building the Debian package
+
+package:
+  name: sample-config-pkg
+  version: 1.0.0
+  architecture: all
+  section: utils
+  priority: optional
+  maintainer: Admin <admin@example.com>
+  description: Sample package with certificates and configuration
+  long_description: |
+    This package installs certificates (CA, server, client) and configuration.
+    Files are placed under /opt/config/.
+  install_path: /opt/config
+  config_name: test.conf
+
+# Configuration file settings
+config:
+  settings:
+    host: localhost
+    port: 443
+    ssl_enabled: true
+
+  logging:
+    log_level: info
+    log_file: /var/log/sample-app.log

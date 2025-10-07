@@ -1,0 +1,16 @@
+#!/bin/bash
+set -e
+
+echo "Pre-installation: Preparing to install {{ package_name }}"
+
+# Backup existing config if present
+if [ -f {{ install_path }}/{{ config_name }} ]; then
+    echo "Backing up existing {{ config_name }}"
+    cp {{ install_path }}/{{ config_name }} {{ install_path }}/{{ config_name }}.bak
+fi
+
+# Create directories
+mkdir -p {{ install_path }}/certs
+
+echo "Pre-installation completed"
+exit 0

@@ -1,0 +1,11 @@
+#!/bin/bash
+set -e
+
+if [ "$1" = "purge" ]; then
+    echo "Removing configuration files..."
+    rm -f {{ install_path }}/{{ config_name }}
+    rm -f {{ install_path }}/{{ config_name }}.bak
+    echo "Cleanup completed"
+fi
+
+exit 0
