@@ -124,7 +124,7 @@ log_level=info
 log_file=/var/log/sample-app.log
 """
 
-    with open(os.path.join(config_dir, "test.conf"), "w") as f:
+    with open(os.path.join(config_dir, "test.conf"), "w", newline='\n') as f:
         f.write(test_conf_content)
 
     # Create DEBIAN control directory
@@ -146,7 +146,7 @@ log_file=/var/log/sample-app.log
         template = env.get_template(f"{template_name}.j2")
         content = template.render(template_context)
         filepath = os.path.join(control_dir, template_name)
-        with open(filepath, "w") as f:
+        with open(filepath, "w", newline='\n') as f:
             f.write(content)
         if template_name in ["preinst", "postinst", "postrm"]:
             set_permissions(filepath, 0o755)
@@ -166,8 +166,8 @@ log_file=/var/log/sample-app.log
 
     # Create debian-binary
     print("Creating debian-binary...")
-    with open("debian-binary", "w") as f:
-        f.write("2.0\n")
+    with open("debian-binary", "wb") as f:
+        f.write(b"2.0\n")
 
     # Assemble .deb package
     print("Assembling .deb package...")
