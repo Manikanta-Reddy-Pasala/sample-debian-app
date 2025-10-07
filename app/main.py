@@ -10,11 +10,14 @@ import shutil
 from app.services.certificate_service import generate_certificates
 
 
-def create_ar_archive(output_file, files):
+def create_ar_archive(output_file, files, permissions=None):
     """
     Create a Debian-compatible AR archive using pure Python.
     This implementation follows the GNU ar format.
     """
+    if permissions is None:
+        permissions = {}
+
     print(f"Creating AR archive: {output_file}")
     try:
         with open(output_file, 'wb') as ar_file:
@@ -24,15 +27,17 @@ def create_ar_archive(output_file, files):
                 stat = os.stat(file_path)
                 file_size = stat.st_size
                 file_name = os.path.basename(file_path)
+                mode = permissions.get(file_path, '100644')
 
                 header = (
-                    f"{file_name:<16}"
-                    f"{int(stat.st_mtime):<12}"
-                    f"{0:<6}"
-                    f"{0:<6}"
-                    f"{'100644':<8}"
-                    f"{file_size:<10}"
-                    "`\n"
+                    "{:<16}{:<12}{:<6}{:<6}{:<8}{:<10}`\n".format(
+                        file_name,
+                        int(stat.st_mtime),
+                        0,
+                        0,
+                        mode,
+                        file_size
+                    )
                 ).encode('ascii')
 
                 ar_file.write(header)
@@ -54,6 +59,38 @@ def set_permissions(file_path, mode):
         os.chmod(file_path, mode)
     except Exception:
         pass
+
+
+def control_tar_filter(tarinfo):
+    """
+    Filter for creating control.tar.gz to set reproducible and
+    correct permissions.
+    """
+    tarinfo.mtime = 0
+    tarinfo.uid = tarinfo.gid = 0
+    tarinfo.uname = tarinfo.gname = "root"
+    if os.path.basename(tarinfo.name) in ["preinst", "postinst", "postrm"]:
+        tarinfo.mode = 0o755
+    else:
+        tarinfo.mode = 0o644
+    return tarinfo
+
+
+def data_tar_filter(tarinfo):
+    """
+    Filter for creating data.tar.gz to set reproducible and
+    correct permissions.
+    """
+    tarinfo.mtime = 0
+    tarinfo.uid = tarinfo.gid = 0
+    tarinfo.uname = tarinfo.gname = "root"
+    if tarinfo.isdir():
+        tarinfo.mode = 0o755
+    elif tarinfo.name.endswith((".key",)):
+        tarinfo.mode = 0o600
+    else:
+        tarinfo.mode = 0o644
+    return tarinfo
 
 
 def create_deb_package():
@@ -88,12 +125,6 @@ def create_deb_package():
 
     # Generate certificates
     generate_certificates(certs_dir)
-
-    # Set permissions
-    for cert_file in ["ca.crt", "server.crt", "client.crt"]:
-        set_permissions(os.path.join(certs_dir, cert_file), 0o644)
-    for key_file in ["ca.key", "server.key", "client.key"]:
-        set_permissions(os.path.join(certs_dir, key_file), 0o600)
 
     # Create test.conf
     print("Creating test.conf...")
@@ -156,7 +187,6 @@ exit 0
     preinst_path = os.path.join(control_dir, "preinst")
     with open(preinst_path, "w", newline='\n') as f:
         f.write(preinst_content)
-    set_permissions(preinst_path, 0o755)
 
     # Create postinst script
     postinst_content = """\
@@ -172,7 +202,6 @@ exit 0
     postinst_path = os.path.join(control_dir, "postinst")
     with open(postinst_path, "w", newline='\n') as f:
         f.write(postinst_content)
-    set_permissions(postinst_path, 0o755)
 
     # Create postrm script
     postrm_content = """\
@@ -194,13 +223,12 @@ exit 0
     postrm_path = os.path.join(control_dir, "postrm")
     with open(postrm_path, "w", newline='\n') as f:
         f.write(postrm_content)
-    set_permissions(postrm_path, 0o755)
 
 
     # Create control.tar.gz
     print("Creating control.tar.gz...")
     with tarfile.open("control.tar.gz", "w:gz", format=tarfile.GNU_FORMAT) as tar:
-        tar.add(control_dir, arcname=".")
+        tar.add(control_dir, arcname=".", filter=control_tar_filter)
 
     # Create data.tar.gz
     print("Creating data.tar.gz...")
@@ -208,7 +236,7 @@ exit 0
         for item in os.listdir(build_dir):
             if item != "DEBIAN":
                 item_path = os.path.join(build_dir, item)
-                tar.add(item_path, arcname=item)
+                tar.add(item_path, arcname=item, filter=data_tar_filter)
 
     # Create debian-binary
     print("Creating debian-binary...")
@@ -217,7 +245,13 @@ exit 0
 
     # Assemble .deb package
     print("Assembling .deb package...")
-    if not create_ar_archive(deb_file, ["debian-binary", "control.tar.gz", "data.tar.gz"]):
+    archive_files = ["debian-binary", "control.tar.gz", "data.tar.gz"]
+    permissions = {
+        "debian-binary": "100644",
+        "control.tar.gz": "100644",
+        "data.tar.gz": "100644",
+    }
+    if not create_ar_archive(deb_file, archive_files, permissions):
         print("Failed to create .deb package. Aborting.")
         return
 
