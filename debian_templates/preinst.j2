@@ -1,0 +1,16 @@
+#!/bin/bash
+set -e
+
+echo "Pre-installation: Preparing to install {{ package_name }}"
+
+# Backup existing config if present
+if [ -f /opt/config/test.conf ]; then
+    echo "Backing up existing test.conf"
+    cp /opt/config/test.conf /opt/config/test.conf.bak
+fi
+
+# Create directories
+mkdir -p /opt/config/certs
+
+echo "Pre-installation completed"
+exit 0

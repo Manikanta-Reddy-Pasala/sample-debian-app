@@ -1,0 +1,11 @@
+#!/bin/bash
+set -e
+
+if [ "$1" = "purge" ]; then
+    echo "Removing configuration files..."
+    rm -f /opt/config/test.conf
+    rm -f /opt/config/test.conf.bak
+    echo "Cleanup completed"
+fi
+
+exit 0
