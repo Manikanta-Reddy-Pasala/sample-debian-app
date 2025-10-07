@@ -13,11 +13,13 @@ from app.services.certificate_service import generate_certificates
 def create_ar_archive(output_file, files):
     """
     Create a Debian-compatible AR archive using pure Python.
-    This implementation follows the GNU ar format.
+    This implementation follows the GNU ar format with exact byte specifications
+    for cross-platform compatibility (Windows, macOS, Linux).
     """
     print(f"Creating AR archive: {output_file}")
     try:
         with open(output_file, 'wb') as ar_file:
+            # Write AR magic header
             ar_file.write(b'!<arch>\n')
 
             for file_path in files:
@@ -25,26 +27,49 @@ def create_ar_archive(output_file, files):
                 file_size = stat.st_size
                 file_name = os.path.basename(file_path)
 
-                header = (
-                    f"{file_name:<16}"
-                    f"{int(stat.st_mtime):<12}"
-                    f"{0:<6}"
-                    f"{0:<6}"
-                    f"{'100644':<8}"
-                    f"{file_size:<10}"
-                    "`\n"
-                ).encode('ascii')
+                # AR header format is exactly 60 bytes:
+                # - file name (16 bytes, padded with spaces)
+                # - modification time (12 bytes, padded with spaces)
+                # - owner ID (6 bytes, padded with spaces)
+                # - group ID (6 bytes, padded with spaces)
+                # - file mode (8 bytes, padded with spaces)
+                # - file size (10 bytes, padded with spaces)
+                # - file magic (2 bytes: backtick + newline)
 
-                ar_file.write(header)
+                # Build header components
+                name_field = file_name.ljust(16)[:16]
+                time_field = str(int(stat.st_mtime)).ljust(12)[:12]
+                uid_field = '0'.ljust(6)
+                gid_field = '0'.ljust(6)
+                mode_field = '100644'.ljust(8)
+                size_field = str(file_size).ljust(10)[:10]
+                magic_field = '`\n'
+
+                # Construct the full header (must be exactly 60 bytes)
+                header = f"{name_field}{time_field}{uid_field}{gid_field}{mode_field}{size_field}{magic_field}"
+
+                # Ensure header is exactly 60 bytes
+                if len(header) != 60:
+                    raise ValueError(f"Header length is {len(header)}, expected 60 bytes")
+
+                # Write header as ASCII bytes
+                ar_file.write(header.encode('ascii'))
+
+                # Write file content
                 with open(file_path, 'rb') as f:
-                    ar_file.write(f.read())
+                    content = f.read()
+                    ar_file.write(content)
 
+                # AR format requires 2-byte alignment - add newline if file size is odd
                 if file_size % 2 != 0:
                     ar_file.write(b'\n')
+
         print("✓ AR archive created successfully")
         return True
     except Exception as e:
         print(f"Error creating AR archive: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
@@ -197,12 +222,12 @@ exit 0
     set_permissions(postrm_path, 0o755)
 
 
-    # Create control.tar.gz
+    # Create control.tar.gz with explicit binary mode for cross-platform compatibility
     print("Creating control.tar.gz...")
     with tarfile.open("control.tar.gz", "w:gz", format=tarfile.GNU_FORMAT) as tar:
         tar.add(control_dir, arcname=".")
 
-    # Create data.tar.gz
+    # Create data.tar.gz with explicit binary mode for cross-platform compatibility
     print("Creating data.tar.gz...")
     with tarfile.open("data.tar.gz", "w:gz", format=tarfile.GNU_FORMAT) as tar:
         for item in os.listdir(build_dir):
@@ -210,9 +235,10 @@ exit 0
                 item_path = os.path.join(build_dir, item)
                 tar.add(item_path, arcname=item)
 
-    # Create debian-binary
+    # Create debian-binary with Unix line ending (LF) - critical for compatibility
     print("Creating debian-binary...")
     with open("debian-binary", "wb") as f:
+        # Must use LF (Unix line ending) even on Windows for Debian package compatibility
         f.write(b"2.0\n")
 
     # Assemble .deb package
