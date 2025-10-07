@@ -133,7 +133,7 @@ log_file=/var/log/sample-app.log
     os.makedirs(control_dir, exist_ok=True)
 
     # Render Jinja2 templates
-    env = Environment(loader=FileSystemLoader(template_dir))
+    env = Environment(loader=FileSystemLoader(template_dir), keep_trailing_newline=True)
     template_context = {
         "package_name": package_name,
         "version": version,
