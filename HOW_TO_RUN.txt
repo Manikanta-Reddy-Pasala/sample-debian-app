@@ -2,17 +2,9 @@
                HOW TO RUN - Debian Package Generator
 ═══════════════════════════════════════════════════════════════
 
-METHOD 1: Run the Executable (Recommended)
-───────────────────────────────────────────────────────────────
-$ ./generate-deb-package
-
-This is a standalone executable that includes all dependencies.
-No Python installation needed to run it!
-
-Output: sample-config-pkg_1.0.0_all.deb
 
 
-METHOD 2: Run Python Script Directly
+METHOD 1: Run Python Script Directly
 ───────────────────────────────────────────────────────────────
 If you prefer to run the Python script:
 
