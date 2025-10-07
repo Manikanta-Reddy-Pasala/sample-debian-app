@@ -5,52 +5,9 @@ Creates .deb package with CA cert, server cert, client cert under /opt/config/
 """
 
 import os
-import tarfile
 import shutil
+from deb_pkg_tools.package import build_package
 from app.services.certificate_service import generate_certificates
-
-
-def create_ar_archive(output_file, files, permissions=None):
-    """
-    Create a Debian-compatible AR archive using pure Python.
-    This implementation follows the GNU ar format.
-    """
-    if permissions is None:
-        permissions = {}
-
-    print(f"Creating AR archive: {output_file}")
-    try:
-        with open(output_file, 'wb') as ar_file:
-            ar_file.write(b'!<arch>\n')
-
-            for file_path in files:
-                stat = os.stat(file_path)
-                file_size = stat.st_size
-                file_name = os.path.basename(file_path)
-                mode = permissions.get(file_path, '100644')
-
-                header = (
-                    "{:<16}{:<12}{:<6}{:<6}{:<8}{:<10}`\n".format(
-                        file_name,
-                        int(stat.st_mtime),
-                        0,
-                        0,
-                        mode,
-                        file_size
-                    )
-                ).encode('ascii')
-
-                ar_file.write(header)
-                with open(file_path, 'rb') as f:
-                    ar_file.write(f.read())
-
-                if file_size % 2 != 0:
-                    ar_file.write(b'\n')
-        print("✓ AR archive created successfully")
-        return True
-    except Exception as e:
-        print(f"Error creating AR archive: {e}")
-        return False
 
 
 def set_permissions(file_path, mode):
@@ -59,38 +16,6 @@ def set_permissions(file_path, mode):
         os.chmod(file_path, mode)
     except Exception:
         pass
-
-
-def control_tar_filter(tarinfo):
-    """
-    Filter for creating control.tar.gz to set reproducible and
-    correct permissions.
-    """
-    tarinfo.mtime = 0
-    tarinfo.uid = tarinfo.gid = 0
-    tarinfo.uname = tarinfo.gname = "root"
-    if os.path.basename(tarinfo.name) in ["preinst", "postinst", "postrm"]:
-        tarinfo.mode = 0o755
-    else:
-        tarinfo.mode = 0o644
-    return tarinfo
-
-
-def data_tar_filter(tarinfo):
-    """
-    Filter for creating data.tar.gz to set reproducible and
-    correct permissions.
-    """
-    tarinfo.mtime = 0
-    tarinfo.uid = tarinfo.gid = 0
-    tarinfo.uname = tarinfo.gname = "root"
-    if tarinfo.isdir():
-        tarinfo.mode = 0o755
-    elif tarinfo.name.endswith((".key",)):
-        tarinfo.mode = 0o600
-    else:
-        tarinfo.mode = 0o644
-    return tarinfo
 
 
 def create_deb_package():
@@ -104,18 +29,17 @@ def create_deb_package():
     maintainer = "Admin <admin@example.com>"
     description = "Sample package with certificates and configuration"
 
-    package_dir = f"{package_name}_{version}_{architecture}"
-    deb_file = f"{package_dir}.deb"
     build_dir = "build"
+    dist_dir = "dist"
 
     # Clean up
     print("Cleaning up previous builds...")
-    for item in [build_dir, deb_file, "debian-binary", "control.tar.gz", "data.tar.gz"]:
+    for item in [build_dir, dist_dir]:
         if os.path.exists(item):
-            if os.path.isdir(item):
-                shutil.rmtree(item)
-            else:
-                os.remove(item)
+            shutil.rmtree(item)
+
+    # Create directories
+    os.makedirs(dist_dir, exist_ok=True)
 
     # Create directory structure
     print("Creating package structure...")
@@ -125,6 +49,12 @@ def create_deb_package():
 
     # Generate certificates
     generate_certificates(certs_dir)
+
+    # Set permissions for certificates
+    for cert_file in ["ca.crt", "server.crt", "client.crt"]:
+        set_permissions(os.path.join(certs_dir, cert_file), 0o644)
+    for key_file in ["ca.key", "server.key", "client.key"]:
+        set_permissions(os.path.join(certs_dir, key_file), 0o600)
 
     # Create test.conf
     print("Creating test.conf...")
@@ -149,8 +79,10 @@ log_level=info
 log_file=/var/log/sample-app.log
 """
 
-    with open(os.path.join(config_dir, "test.conf"), "w", newline='\n') as f:
+    test_conf_path = os.path.join(config_dir, "test.conf")
+    with open(test_conf_path, "w", newline='\n') as f:
         f.write(test_conf_content)
+    set_permissions(test_conf_path, 0o644)
 
     # Create DEBIAN control directory
     print("Creating control files...")
@@ -187,6 +119,7 @@ exit 0
     preinst_path = os.path.join(control_dir, "preinst")
     with open(preinst_path, "w", newline='\n') as f:
         f.write(preinst_content)
+    set_permissions(preinst_path, 0o755)
 
     # Create postinst script
     postinst_content = """\
@@ -202,6 +135,7 @@ exit 0
     postinst_path = os.path.join(control_dir, "postinst")
     with open(postinst_path, "w", newline='\n') as f:
         f.write(postinst_content)
+    set_permissions(postinst_path, 0o755)
 
     # Create postrm script
     postrm_content = """\
@@ -223,37 +157,11 @@ exit 0
     postrm_path = os.path.join(control_dir, "postrm")
     with open(postrm_path, "w", newline='\n') as f:
         f.write(postrm_content)
+    set_permissions(postrm_path, 0o755)
 
-
-    # Create control.tar.gz
-    print("Creating control.tar.gz...")
-    with tarfile.open("control.tar.gz", "w:gz", format=tarfile.GNU_FORMAT) as tar:
-        tar.add(control_dir, arcname=".", filter=control_tar_filter)
-
-    # Create data.tar.gz
-    print("Creating data.tar.gz...")
-    with tarfile.open("data.tar.gz", "w:gz", format=tarfile.GNU_FORMAT) as tar:
-        for item in os.listdir(build_dir):
-            if item != "DEBIAN":
-                item_path = os.path.join(build_dir, item)
-                tar.add(item_path, arcname=item, filter=data_tar_filter)
-
-    # Create debian-binary
-    print("Creating debian-binary...")
-    with open("debian-binary", "wb") as f:
-        f.write(b"2.0\n")
-
-    # Assemble .deb package
-    print("Assembling .deb package...")
-    archive_files = ["debian-binary", "control.tar.gz", "data.tar.gz"]
-    permissions = {
-        "debian-binary": "100644",
-        "control.tar.gz": "100644",
-        "data.tar.gz": "100644",
-    }
-    if not create_ar_archive(deb_file, archive_files, permissions):
-        print("Failed to create .deb package. Aborting.")
-        return
+    # Build the package
+    print("Building .deb package...")
+    deb_file = build_package(build_dir, repository=dist_dir)
 
     print(f"\n✓ Package created: {deb_file}")
     print(f"✓ Package size: {os.path.getsize(deb_file)} bytes")
@@ -261,18 +169,16 @@ exit 0
     # Cleanup
     print("\nCleaning up...")
     shutil.rmtree(build_dir)
-    os.remove("debian-binary")
-    os.remove("control.tar.gz")
-    os.remove("data.tar.gz")
 
     print("\n" + "="*60)
     print("PACKAGE BUILD COMPLETE")
     print("="*60)
-    print(f"Package: {deb_file}")
+    deb_file_basename = os.path.basename(deb_file)
+    print(f"Package: {deb_file_basename}")
     print("\nVerify (macOS):")
-    print(f"  ar -x {deb_file}")
+    print(f"  ar -x {deb_file_basename}")
     print("\nInstall (Ubuntu):")
-    print(f"  sudo apt install ./{deb_file}")
+    print(f"  sudo apt install ./{deb_file_basename}")
     print("="*60)
 
 
