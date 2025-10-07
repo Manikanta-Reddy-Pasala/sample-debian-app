@@ -1,0 +1,32 @@
+#!/bin/bash
+set -e
+
+echo "Post-installation: Configuring {{ package_name }}"
+
+# Set proper permissions
+if [ -d /opt/config/certs ]; then
+    chmod 755 /opt/config/certs
+    chmod 644 /opt/config/certs/*.crt 2>/dev/null || true
+    chmod 600 /opt/config/certs/*.key 2>/dev/null || true
+    echo "Certificate permissions set"
+fi
+
+if [ -f /opt/config/test.conf ]; then
+    chmod 644 /opt/config/test.conf
+    echo "Configuration permissions set"
+fi
+
+echo ""
+echo "=========================================="
+echo "Installation complete!"
+echo "=========================================="
+echo "Installed files:"
+echo "  - CA Certificate: /opt/config/certs/ca.crt"
+echo "  - Server Certificate: /opt/config/certs/server.crt"
+echo "  - Server Key: /opt/config/certs/server.key"
+echo "  - Client Certificate: /opt/config/certs/client.crt"
+echo "  - Client Key: /opt/config/certs/client.key"
+echo "  - Configuration: /opt/config/test.conf"
+echo "=========================================="
+
+exit 0
