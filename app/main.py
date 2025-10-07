@@ -7,7 +7,6 @@ Creates .deb package with CA cert, server cert, client cert under /opt/config/
 import os
 import tarfile
 import shutil
-from jinja2 import Environment, FileSystemLoader
 from app.services.certificate_service import generate_certificates
 
 
@@ -72,11 +71,6 @@ def create_deb_package():
     deb_file = f"{package_dir}.deb"
     build_dir = "build"
 
-    # Correctly locate the debian_templates directory
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(script_dir)
-    template_dir = os.path.join(project_root, "debian_templates")
-
     # Clean up
     print("Cleaning up previous builds...")
     for item in [build_dir, deb_file, "debian-binary", "control.tar.gz", "data.tar.gz"]:
@@ -132,24 +126,81 @@ log_file=/var/log/sample-app.log
     control_dir = os.path.join(build_dir, "DEBIAN")
     os.makedirs(control_dir, exist_ok=True)
 
-    # Render Jinja2 templates
-    env = Environment(loader=FileSystemLoader(template_dir), keep_trailing_newline=True)
-    template_context = {
-        "package_name": package_name,
-        "version": version,
-        "architecture": architecture,
-        "maintainer": maintainer,
-        "description": description,
-    }
+    # Create control file
+    control_content = f"""\
+Package: {package_name}
+Version: {version}
+Architecture: {architecture}
+Maintainer: {maintainer}
+Description: {description}
+"""
+    with open(os.path.join(control_dir, "control"), "w", newline='\n') as f:
+        f.write(control_content)
 
-    for template_name in ["control", "preinst", "postinst", "postrm"]:
-        template = env.get_template(f"{template_name}.j2")
-        content = template.render(template_context)
-        filepath = os.path.join(control_dir, template_name)
-        with open(filepath, "w", newline='\n') as f:
-            f.write(content)
-        if template_name in ["preinst", "postinst", "postrm"]:
-            set_permissions(filepath, 0o755)
+    # Create preinst script
+    preinst_content = """\
+#!/bin/bash
+set -e
+echo "Running pre-installation script..."
+if [ -d "/opt/config" ]; then
+    echo "Backing up existing configuration..."
+    if [ -d "/opt/config_backup" ]; then
+        rm -rf /opt/config_backup
+    fi
+    mv /opt/config /opt/config_backup
+fi
+mkdir -p /opt/config/certs
+echo "Pre-installation script finished."
+exit 0
+"""
+    preinst_path = os.path.join(control_dir, "preinst")
+    with open(preinst_path, "w", newline='\n') as f:
+        f.write(preinst_content)
+    set_permissions(preinst_path, 0o755)
+
+    # Create postinst script
+    postinst_content = """\
+#!/bin/bash
+set -e
+echo "Running post-installation script..."
+chmod 644 /opt/config/certs/*.crt
+chmod 600 /opt/config/certs/*.key
+chmod 644 /opt/config/test.conf
+echo "watch /opt/config" > /etc/apt/triggers.d/sample-config-pkg
+echo "interest /opt/config" >> /etc/apt/triggers.d/sample-config-pkg
+echo "Post-installation script finished."
+exit 0
+"""
+    postinst_path = os.path.join(control_dir, "postinst")
+    with open(postinst_path, "w", newline='\n') as f:
+        f.write(postinst_content)
+    set_permissions(postinst_path, 0o755)
+
+    # Create postrm script
+    postrm_content = """\
+#!/bin/bash
+set -e
+echo "Running post-removal script..."
+if [ "$1" = "purge" ]; then
+    echo "Purging configuration..."
+    if [ -d "/opt/config" ]; then
+        rm -rf /opt/config
+    fi
+    if [ -d "/opt/config_backup" ]; then
+        rm -rf /opt/config_backup
+    fi
+    if [ -f "/etc/apt/triggers.d/sample-config-pkg" ]; then
+        rm -f /etc/apt/triggers.d/sample-config-pkg
+    fi
+fi
+echo "Post-removal script finished."
+exit 0
+"""
+    postrm_path = os.path.join(control_dir, "postrm")
+    with open(postrm_path, "w", newline='\n') as f:
+        f.write(postrm_content)
+    set_permissions(postrm_path, 0o755)
+
 
     # Create control.tar.gz
     print("Creating control.tar.gz...")
