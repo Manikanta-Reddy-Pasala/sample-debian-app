@@ -7,31 +7,45 @@ Creates .deb package with CA cert, server cert, client cert under /opt/config/
 import os
 import tarfile
 import shutil
-import subprocess
 from jinja2 import Environment, FileSystemLoader
 from app.services.certificate_service import generate_certificates
 
 
 def create_ar_archive(output_file, files):
     """
-    Create a Debian archive using the system's `ar` command.
+    Create a Debian-compatible AR archive using pure Python.
+    This implementation follows the GNU ar format.
     """
     print(f"Creating AR archive: {output_file}")
-    command = ["ar", "rcs", output_file] + files
-
-    # Ensure all files exist before running the command
-    for f in files:
-        if not os.path.exists(f):
-            print(f"Error: Component file not found: {f}")
-            return False
-
     try:
-        subprocess.run(command, check=True)
+        with open(output_file, 'wb') as ar_file:
+            ar_file.write(b'!<arch>\n')
+
+            for file_path in files:
+                stat = os.stat(file_path)
+                file_size = stat.st_size
+                file_name = os.path.basename(file_path)
+
+                header = (
+                    f"{file_name:<16}"
+                    f"{int(stat.st_mtime):<12}"
+                    f"{0:<6}"
+                    f"{0:<6}"
+                    f"{'100644':<8}"
+                    f"{file_size:<10}"
+                    "`\n"
+                ).encode('ascii')
+
+                ar_file.write(header)
+                with open(file_path, 'rb') as f:
+                    ar_file.write(f.read())
+
+                if file_size % 2 != 0:
+                    ar_file.write(b'\n')
         print("✓ AR archive created successfully")
         return True
-    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+    except Exception as e:
         print(f"Error creating AR archive: {e}")
-        print("Please ensure that 'ar' is installed and in your system's PATH.")
         return False
 
 
