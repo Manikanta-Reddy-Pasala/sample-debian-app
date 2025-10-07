@@ -416,12 +416,12 @@ exit 0
 
     # Create control.tar.gz
     print("Creating control.tar.gz...")
-    with tarfile.open("control.tar.gz", "w:gz") as tar:
+    with tarfile.open("control.tar.gz", "w:gz", format=tarfile.GNU_FORMAT) as tar:
         tar.add(control_dir, arcname=".")
 
     # Create data.tar.gz
     print("Creating data.tar.gz...")
-    with tarfile.open("data.tar.gz", "w:gz") as tar:
+    with tarfile.open("data.tar.gz", "w:gz", format=tarfile.GNU_FORMAT) as tar:
         for item in os.listdir(build_dir):
             if item != "DEBIAN":
                 item_path = os.path.join(build_dir, item)
