@@ -2,25 +2,16 @@
                HOW TO RUN - Debian Package Generator
 ═══════════════════════════════════════════════════════════════
 
-METHOD 1: Run the Executable (Recommended)
+This project is structured as a Python package.
+
+METHOD 1: Run from the command line
 ───────────────────────────────────────────────────────────────
-$ ./generate-deb-package
+Step 1: Install the package
+This will install all dependencies and the `debpkg-build` command.
+$ pip3 install -e ./debpkg
 
-This is a standalone executable that includes all dependencies.
-No Python installation needed to run it!
-
-Output: sample-config-pkg_1.0.0_all.deb
-
-
-METHOD 2: Run Python Script Directly
-───────────────────────────────────────────────────────────────
-If you prefer to run the Python script:
-
-Step 1: Install dependencies
-$ pip3 install -r requirements.txt
-
-Step 2: Run the script
-$ python3 build_deb_package.py
+Step 2: Run the package builder
+$ debpkg-build -c debpkg/config/package.yaml -t debpkg/templates
 
 Output: sample-config-pkg_1.0.0_all.deb
 
@@ -61,19 +52,8 @@ PACKAGE CONTENTS
 ✓ Configuration file
 
 
-TO CREATE EXECUTABLE FROM SCRATCH
-───────────────────────────────────────────────────────────────
-If you want to rebuild the executable:
-
-$ pip3 install -r requirements.txt
-$ pyinstaller --onefile --name generate-deb-package build_deb_package.py
-
-The executable will be in the dist/ folder.
-
-
 NOTES
 ───────────────────────────────────────────────────────────────
-✓ Executable is standalone (no dependencies needed)
 ✓ 100% Pure Python source code
 ✓ Cross-platform compatible
 ✓ Certificates signed by CA

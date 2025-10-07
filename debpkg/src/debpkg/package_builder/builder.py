@@ -164,12 +164,12 @@ class DebianPackageBuilder:
     def _create_archives(self):
         """Create control.tar.gz and data.tar.gz."""
         print("Creating control.tar.gz...")
-        with tarfile.open("control.tar.gz", "w:gz") as tar:
+        with tarfile.open("control.tar.gz", "w:gz", format=tarfile.GNU_FORMAT) as tar:
             control_dir = os.path.join(self.build_dir, "DEBIAN")
             tar.add(control_dir, arcname=".")
 
         print("Creating data.tar.gz...")
-        with tarfile.open("data.tar.gz", "w:gz") as tar:
+        with tarfile.open("data.tar.gz", "w:gz", format=tarfile.GNU_FORMAT) as tar:
             for item in os.listdir(self.build_dir):
                 if item != "DEBIAN":
                     item_path = os.path.join(self.build_dir, item)
